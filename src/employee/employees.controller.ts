@@ -1,35 +1,40 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Ip } from '@nestjs/common';
 import { EmployeeService } from './employees.service';
-// import { CreateEmployeeDto } from './dto/create-employee.dto';
-// import { UpdateEmployeeDto } from './dto/update-employee.dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
+import { Throttle, SkipThrottle } from '@nestjs/throttler'
+import { MyLoggerService } from 'src/my-logger/my-logger.service';
 
+@SkipThrottle()
 @Controller('employees')
 export class EmployeeController {
-  constructor(private readonly employeeService: EmployeeService) {}
-
+  constructor(private readonly employeesService: EmployeeService) { }
+  private readonly logger = new MyLoggerService(EmployeeController.name)
+  
   @Post()
   create(@Body() createEmployeeDto: Prisma.EmployeeCreateInput) {
-    return this.employeeService.create(createEmployeeDto);
+    return this.employeesService.create(createEmployeeDto);
   }
 
+  @SkipThrottle({ default: false })
   @Get()
-  findAll(@Query('role') role?: 'INTERN' | 'ENGINEER' | 'ADMIN') {
-    return this.employeeService.findAll(role);
+  findAll(@Ip() ip: string, @Query('role') role?: Role) {
+    this.logger.log(`Request for ALL Employees\t${ip}`, EmployeeController.name)
+    return this.employeesService.findAll(role);
   }
 
+  @Throttle({ short: { ttl: 1000, limit: 1 }})
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.employeeService.findOne(+id);
+    return this.employeesService.findOne(+id);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateEmployeeDto: Prisma.EmployeeUpdateInput) {
-    return this.employeeService.update(+id, updateEmployeeDto);
+    return this.employeesService.update(+id, updateEmployeeDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.employeeService.remove(+id);
+    return this.employeesService.remove(+id);
   }
 }
